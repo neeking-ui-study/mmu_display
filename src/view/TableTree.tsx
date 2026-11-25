@@ -3,7 +3,24 @@ import { TOKENS } from '../tokens';
 import type { Pte, Step, ViewMode } from '../types';
 
 const ENTRIES = 512;
-const hex = (value: number) => `0x${value.toString(16).toUpperCase().padStart(3, '0')}`;
+const hex = (value: number, width = 3) =>
+  `0x${value.toString(16).toUpperCase().padStart(width, '0')}`;
+const bits = (value: number, width = 9) => `0b${value.toString(2).padStart(width, '0')}`;
+
+/** 模拟 32 位描述符：[47:12]=pfn，低位依次放 v/r/w/x/u/a/d，仅用于讲解，非真实编码。 */
+function descriptorOf(pte: Pte): number {
+  return (
+    ((pte.pfn << 12) |
+      pte.v |
+      (pte.r << 1) |
+      (pte.w << 2) |
+      (pte.x << 3) |
+      (pte.u << 4) |
+      (pte.a << 6) |
+      (pte.d << 7)) >>>
+    0
+  );
+}
 
 /** 页表区：每级一行，16 格窗口以当前索引居中，两端折叠计数。 */
 export default function TableTree({ step, viewMode }: { step: Step | null; viewMode: ViewMode }) {
@@ -54,6 +71,10 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
       {rows.map(({ level, frame, index, table, current }) => {
         const start = Math.min(Math.max(index - 8, 0), ENTRIES - SIZES.pageWindow);
         const windowCells = Array.from({ length: SIZES.pageWindow }, (_, i) => start + i);
+        const offsetBits = state ? Math.log2(state.cfg.pageSize) : 0;
+        const indexBits = state ? (state.cfg.addrWidth - offsetBits) / state.cfg.levels : 0;
+        const high = state ? offsetBits + (state.cfg.levels - level) * indexBits - 1 : 0;
+        const low = high - indexBits + 1;
         return (
           <div key={level} style={{ flex: 1, minHeight: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -75,7 +96,7 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
                   return (
                     <div
                       key={cell}
-                      title={`索引 ${hex(cell)}`}
+                      title={`第 ${cell} 槽 · 索引 ${hex(cell)}`}
                       style={{
                         flex: 1,
                         height: SIZES.cell.h,
@@ -121,13 +142,37 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
                 textOverflow: 'ellipsis',
               }}
             >
-              索引 {hex(index)} ·
-              {current
-                ? ` v${current.v} r${current.r} w${current.w} x${current.x} u${current.u} a${current.a} d${current.d} · PFN 0x${current.pfn
-                    .toString(16)
-                    .toUpperCase()
-                    .padStart(3, '0')} · ${current.leaf ? 'leaf' : 'table'}`
-                : ' 表项缺失'}
+              第 {index} 槽（索引 {hex(index)}）· 本级取 VA bit {high}:{low} = {bits(index)}
+            </div>
+            <div
+              style={{
+                font: TOKENS.font.mono,
+                fontSize: 11,
+                marginTop: 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {current ? (
+                <>
+                  <span style={{ color: TOKENS.color.textMuted }}>描述符 </span>
+                  <span style={{ color: TOKENS.color.text }}>{hex(descriptorOf(current), 8)}</span>
+                  <span style={{ color: TOKENS.color.textMuted }}>（模拟布局）</span>
+                  <span style={{ color: TOKENS.color.textMuted }}> · PFN </span>
+                  <span style={{ color: TOKENS.color.vpn }}>{hex(current.pfn)}</span>
+                  <span style={{ color: TOKENS.color.textMuted }}>
+                    （{current.leaf ? '数据页帧' : '下一级表帧'}）
+                  </span>
+                  <span style={{ color: TOKENS.color.textMuted }}>
+                    {' '}
+                    · v={current.v} r={current.r} w={current.w} x={current.x} u={current.u} a=
+                    {current.a} d={current.d} · {current.leaf ? '叶子表项' : '非叶子表项'}
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: TOKENS.color.error }}>该槽无表项（v=0，访问会触发页缺失）</span>
+              )}
             </div>
           </div>
         );

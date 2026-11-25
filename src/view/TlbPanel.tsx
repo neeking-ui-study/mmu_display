@@ -29,16 +29,16 @@ export default function TlbPanel({ step, enabled }: { step: Step | null; enabled
         transition: TOKENS.motion.base,
       }}
     >
-      <div style={{ font: TOKENS.font.ui, fontSize: 11, color: TOKENS.color.textMuted, marginBottom: 4 }}>
-        槽 · VPN · PFN · R/W/X · tick
+      <div style={{ font: TOKENS.font.ui, fontSize: 10.5, color: TOKENS.color.textMuted, marginBottom: 4 }}>
+        槽位 · VPN（VA&gt;&gt;12）· PFN · 权限 R/W/X · tick（最近使用）
       </div>
       {Array.from({ length: 8 }, (_, slot) => {
         const entry = tlb[slot];
         const active = focus.has(`tlb.${slot}`);
         const failed = errors.has(`tlb.${slot}`);
         const text = entry
-          ? `#${slot} · ${hex(entry.vpn, 8)} · ${hex(entry.pfn, 3)} · ${entry.r}/${entry.w}/${entry.x} · ${entry.tick}`
-          : `#${slot} · —`;
+          ? `#${slot} · VPN ${hex(entry.vpn, 8)} · PFN ${hex(entry.pfn, 3)} · R=${entry.r} W=${entry.w} X=${entry.x} · tick=${entry.tick}`
+          : `#${slot} · 空槽`;
         return (
           <div
             key={slot}
@@ -47,7 +47,7 @@ export default function TlbPanel({ step, enabled }: { step: Step | null; enabled
               lineHeight: `${SIZES.tlbRowH}px`,
               padding: '0 4px',
               font: TOKENS.font.mono,
-              fontSize: 11,
+              fontSize: 10,
               color: failed ? TOKENS.color.error : entry ? TOKENS.color.text : TOKENS.color.textMuted,
               background: failed
                 ? `${TOKENS.color.error}14`
