@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "addrWidth": 39,
+  "pageSize": 4096,
+  "rootFrame": "0x005",
+  "frameCount": 256,
+  "freeFrameStart": "0x030",
+  "mappings": [
+    {
+      "vaBase": "0x7F12345000",
+      "pages": 1,
+      "pa": "0x22000",
+      "v": 1,
+      "r": 1,
+      "w": 1,
+      "x": 1,
+      "u": 1,
+      "a": 1,
+      "d": 0
+    }
+  ],
+  "tlb": []
+}
