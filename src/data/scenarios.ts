@@ -6,7 +6,7 @@ import eSpec from '../../configs/e-perm-fault.json';
 import fSpec from '../../configs/f-39bit.json';
 import hSpec from '../../configs/h-2m-block.json';
 import { deriveLevels } from '../config';
-import type { Config, TlbEntry } from '../types';
+import type { AddrWidth, Config, PageSize, TlbEntry } from '../types';
 import { buildMemImage, validateSpec } from './memory';
 import type { MemImage, MemSpec } from './memory';
 
@@ -20,16 +20,23 @@ export interface Scenario {
   mem: MemImage;
 }
 
-export const SCENARIO_LIST: Array<{ id: ScenarioId; name: string }> = [
-  { id: 'A', name: 'TLB 命中' },
-  { id: 'B', name: 'TLB 缺失 + 4 级 walk' },
-  { id: 'C', name: '纯 walk（TLB 关）' },
-  { id: 'D', name: '页缺失回填' },
-  { id: 'E', name: '权限异常' },
-  { id: 'F', name: '39 位三级对照' },
-  { id: 'G', name: 'TLB 满淘汰' },
-  { id: 'H', name: '2 MB block walk（3 级）' },
-];
+const SCENARIO_NAMES: Record<ScenarioId, string> = {
+  A: 'TLB 命中',
+  B: 'TLB 缺失 + 4 级 walk',
+  C: '纯 walk（TLB 关）',
+  D: '页缺失回填',
+  E: '权限异常',
+  F: '39 位三级对照',
+  G: 'TLB 满淘汰',
+  H: '2 MB block walk（3 级）',
+};
+
+export interface ScenarioMeta {
+  id: ScenarioId;
+  name: string;
+  addrWidth: AddrWidth;
+  pageSize: PageSize;
+}
 
 const VA_48 = 0x0000_0123_4567_89ab;
 const VA_39 = 0x7f_1234_5678;
@@ -64,6 +71,19 @@ function specOf(id: ScenarioId): MemSpec {
   return validateSpec(SPECS[id]);
 }
 
+/** 场景下拉元数据：id、名称与该场景配置的位宽 / 页大小。 */
+export const SCENARIO_LIST: ScenarioMeta[] = (
+  Object.keys(SCENARIO_NAMES) as ScenarioId[]
+).map((id) => {
+  const spec = specOf(id);
+  return {
+    id,
+    name: SCENARIO_NAMES[id],
+    addrWidth: spec.addrWidth,
+    pageSize: spec.pageSize,
+  };
+});
+
 export function loadScenario(id: ScenarioId): Scenario {
   const spec = specOf(id);
   const cfg: Config = {
@@ -76,7 +96,7 @@ export function loadScenario(id: ScenarioId): Scenario {
   };
   return {
     id,
-    name: SCENARIO_LIST.find((item) => item.id === id)?.name ?? id,
+    name: SCENARIO_NAMES[id],
     va: id === 'F' ? VA_39 : VA_48,
     cfg,
     mem: buildMemImage(spec),

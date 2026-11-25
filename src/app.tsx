@@ -14,7 +14,7 @@ import { usePlayer } from './player/usePlayer';
 import type { Speed } from './player/usePlayer';
 import { TOKENS } from './tokens';
 import { ConfigError } from './types';
-import type { AccessKind, Config, PageSize, Step, ViewMode } from './types';
+import type { AccessKind, AddrWidth, Config, PageSize, Step, ViewMode } from './types';
 import AddressBar from './view/AddressBar';
 import MemPanel from './view/MemPanel';
 import Narration from './view/NarrationPanel';
@@ -34,6 +34,8 @@ interface Model {
 
 const hex = (value: number, width: number) =>
   `0x${value.toString(16).toUpperCase().padStart(width, '0')}`;
+
+const pageLabel = (size: PageSize) => (size === 4096 ? '4 KB' : '2 MB');
 
 const errText = (caught: unknown) =>
   caught instanceof ConfigError || caught instanceof Error ? caught.message : String(caught);
@@ -165,11 +167,24 @@ export default function App() {
     guard(() => fromScenario(id));
   };
 
-  const changeWidth = (width: 48 | 39) => {
+  const mismatchText = (next: { addrWidth: AddrWidth; pageSize: PageSize }) =>
+    `页表按 ${model.mem.addrWidth} 位 / ${pageLabel(model.mem.pageSize)} 构建，与所选 ${next.addrWidth} 位 / ${pageLabel(next.pageSize)} 不匹配；请载入匹配配置或换场景`;
+
+  const changeWidth = (width: AddrWidth) => {
+    if (width === model.cfg.addrWidth) return;
+    if (width !== model.mem.addrWidth) {
+      setError(mismatchText({ addrWidth: width, pageSize: model.cfg.pageSize }));
+      return;
+    }
     patch({ addrWidth: width, levels: deriveLevels(width, model.cfg.pageSize) });
   };
 
   const changePageSize = (value: PageSize) => {
+    if (value === model.cfg.pageSize) return;
+    if (value !== model.mem.pageSize) {
+      setError(mismatchText({ addrWidth: model.cfg.addrWidth, pageSize: value }));
+      return;
+    }
     patch({ pageSize: value, levels: deriveLevels(model.cfg.addrWidth, value) });
   };
 
@@ -340,7 +355,7 @@ interface ToolbarProps {
   onVaText: (text: string) => void;
   onCommitVa: () => void;
   onFile: (file: File) => void;
-  onWidth: (width: 48 | 39) => void;
+  onWidth: (width: AddrWidth) => void;
   onPageSize: (value: PageSize) => void;
   onTlb: (enabled: boolean) => void;
   onAccess: (access: AccessKind) => void;
@@ -383,7 +398,7 @@ function Toolbar(props: ToolbarProps) {
       <label style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={fieldLabelStyle}>场景</span>
         <select
-          style={{ ...controlStyle, width: 68 }}
+          style={{ ...controlStyle, width: 132 }}
           value={model.scenarioId ?? 'custom'}
           onChange={(event) => {
             if (event.target.value !== 'custom') props.onScenario(event.target.value as ScenarioId);
@@ -392,7 +407,7 @@ function Toolbar(props: ToolbarProps) {
         >
           {SCENARIO_LIST.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.id}
+              {`${item.id} · ${item.addrWidth} 位 · ${pageLabel(item.pageSize)}`}
             </option>
           ))}
           {model.scenarioId === null && <option value="custom">自定义</option>}
@@ -470,7 +485,7 @@ function Toolbar(props: ToolbarProps) {
         <select
           style={{ ...controlStyle, width: 64 }}
           value={cfg.addrWidth}
-          onChange={(event) => props.onWidth(Number(event.target.value) as 48 | 39)}
+          onChange={(event) => props.onWidth(Number(event.target.value) as AddrWidth)}
           title={label('addrWidth')}
         >
           <option value={48}>48</option>
