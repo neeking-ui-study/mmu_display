@@ -4,18 +4,27 @@
 
 固定 1440×900 视口，纯前端、无后端，状态全部来自内存中的配置。
 
-## 安装与命令
+## 线上站点
+
+https://37lw7xwbr6qd6xr5rcp.traesite.cn
+
+- 更新代码后重新 `npm run build` 并重新部署即可，URL 保持不变。
+- 站点部署在域名根路径，Vite 的 `base` 保持默认 `/` 即可。
+
+## 本地运行
 
 要求 Node.js ≥ 20.19（Vite 7 的最低版本）。
 
 ```bash
-npm ci          # 或 npm install
-npm run dev     # 本地开发，默认 http://localhost:5173
+npm ci          # 安装依赖，或 npm install
+npm run dev     # 开发模式，默认 http://localhost:5173
 npm test        # vitest 单测
 npm run typecheck
 npm run build   # tsc --noEmit + vite build，产物在 dist/
-npm run preview # 预览构建产物
+npm run preview # 构建后预览，默认 http://localhost:4173
 ```
+
+预览构建产物时先 `npm run build`，再 `npm run preview`。不要直接双击 `dist/index.html` 用 `file://` 打开：浏览器会以 CORS 限制拦截模块脚本，且产物里的资源引用是 `/assets/...` 这类绝对路径，直接打开会白屏或 404；需要通过 `npm run preview` 或任意静态服务器访问。
 
 ## 目录与职责
 
