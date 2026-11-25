@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PAGE_SIZES, deriveLevels } from './config';
-import { CONTROL_REGISTRY } from './data/controls';
+import { CONTROL_REGISTRY, controlLabel } from './data/controls';
 import type { ControlId } from './data/controls';
 import { configOfLoaded, parseConfigDoc } from './data/configDoc';
 import { buildMemImage } from './data/memory';
@@ -278,7 +278,7 @@ export default function App() {
       )}
 
       <AddressBar cfg={model.cfg} va={model.va} step={step} />
-      <TableTree step={step} />
+      <TableTree step={step} viewMode={viewMode} />
       <TlbPanel step={step} enabled={model.cfg.tlbEnabled} />
       <Narration step={step} total={model.steps.length} />
       <MemPanel step={step} />
@@ -330,13 +330,64 @@ const fieldLabelStyle = {
   color: TOKENS.color.textMuted,
 } as const;
 
-function Field({ id, children }: { id: ControlId; children: ReactNode }) {
+const fieldValueStyle = {
+  font: TOKENS.font.mono,
+  fontSize: 10,
+  lineHeight: '11px',
+  color: TOKENS.color.textMuted,
+  whiteSpace: 'nowrap',
+} as const;
+
+function Field({
+  id,
+  viewMode,
+  value,
+  children,
+}: {
+  id: ControlId;
+  viewMode: ViewMode;
+  value: string;
+  children: ReactNode;
+}) {
   const meta = CONTROL_REGISTRY.find((item) => item.id === id);
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
-      <span style={fieldLabelStyle}>{meta?.name ?? id}</span>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={fieldLabelStyle}>{controlLabel(id, viewMode)}</span>
       {children}
+      {viewMode === 'register' && meta && (
+        <span style={fieldValueStyle} title={meta.hint}>
+          {meta.field} = {value}
+        </span>
+      )}
     </label>
+  );
+}
+
+/** register 视角下按寄存器把控件归拢成组；plain 视角只显示组内控件。 */
+function Group({
+  title,
+  viewMode,
+  children,
+}: {
+  title: string;
+  viewMode: ViewMode;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        paddingLeft: 8,
+        borderLeft: `1px solid ${TOKENS.color.line}`,
+      }}
+    >
+      <span style={{ ...fieldLabelStyle, fontSize: 9, lineHeight: '10px' }}>
+        {viewMode === 'register' ? title : ' '}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>{children}</div>
+    </div>
   );
 }
 
@@ -371,12 +422,20 @@ function Toolbar(props: ToolbarProps) {
   const { cfg } = model;
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const label = (id: ControlId) => {
-    const meta = CONTROL_REGISTRY.find((item) => item.id === id);
-    if (!meta) return id;
-    return viewMode === 'register' ? meta.register : meta.name;
+  const valueOf = (id: ControlId): string => {
+    switch (id) {
+      case 'addrWidth':
+        return String(64 - cfg.addrWidth);
+      case 'pageSize':
+        return cfg.pageSize === 4096 ? '0b00' : '—';
+      case 'tlbEnabled':
+        return cfg.tlbEnabled ? '1' : '0';
+      case 'access':
+        return cfg.access;
+      case 'rootFrame':
+        return hex(model.mem.rootFrame, 3);
+    }
   };
-  const hint = (id: ControlId) => CONTROL_REGISTRY.find((item) => item.id === id)?.hint ?? '';
 
   return (
     <header
@@ -481,55 +540,57 @@ function Toolbar(props: ToolbarProps) {
         </div>
       </div>
 
-      <Field id="addrWidth">
-        <select
-          style={{ ...controlStyle, width: 64 }}
-          value={cfg.addrWidth}
-          onChange={(event) => props.onWidth(Number(event.target.value) as AddrWidth)}
-          title={label('addrWidth')}
-        >
-          <option value={48}>48</option>
-          <option value={39}>39</option>
-        </select>
-      </Field>
+      <Group title="TCR_EL1" viewMode={viewMode}>
+        <Field id="addrWidth" viewMode={viewMode} value={valueOf('addrWidth')}>
+          <select
+            style={{ ...controlStyle, width: 64 }}
+            value={cfg.addrWidth}
+            onChange={(event) => props.onWidth(Number(event.target.value) as AddrWidth)}
+          >
+            <option value={48}>48</option>
+            <option value={39}>39</option>
+          </select>
+        </Field>
 
-      <Field id="pageSize">
-        <select
-          style={{ ...controlStyle, width: 76 }}
-          value={cfg.pageSize}
-          onChange={(event) => props.onPageSize(Number(event.target.value) as PageSize)}
-          title={label('pageSize')}
-        >
-          {PAGE_SIZES[cfg.addrWidth].map((size) => (
-            <option key={size} value={size}>
-              {size === 4096 ? '4 KB' : '2 MB'}
-            </option>
-          ))}
-        </select>
-      </Field>
+        <Field id="pageSize" viewMode={viewMode} value={valueOf('pageSize')}>
+          <select
+            style={{ ...controlStyle, width: 76 }}
+            value={cfg.pageSize}
+            onChange={(event) => props.onPageSize(Number(event.target.value) as PageSize)}
+          >
+            {PAGE_SIZES[cfg.addrWidth].map((size) => (
+              <option key={size} value={size}>
+                {size === 4096 ? '4 KB' : '2 MB'}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </Group>
 
-      <Field id="tlbEnabled">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, height: SIZES.controlH }}>
-          <input
-            type="checkbox"
-            checked={cfg.tlbEnabled}
-            onChange={(event) => props.onTlb(event.target.checked)}
-          />
-          <span style={{ font: TOKENS.font.mono, fontSize: 12 }}>{cfg.tlbEnabled ? '开' : '关'}</span>
-        </label>
-      </Field>
+      <Group title="模拟开关 / 访存" viewMode={viewMode}>
+        <Field id="tlbEnabled" viewMode={viewMode} value={valueOf('tlbEnabled')}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, height: SIZES.controlH }}>
+            <input
+              type="checkbox"
+              checked={cfg.tlbEnabled}
+              onChange={(event) => props.onTlb(event.target.checked)}
+            />
+            <span style={{ font: TOKENS.font.mono, fontSize: 12 }}>{cfg.tlbEnabled ? '开' : '关'}</span>
+          </label>
+        </Field>
 
-      <Field id="access">
-        <select
-          style={{ ...controlStyle, width: 72 }}
-          value={cfg.access}
-          onChange={(event) => props.onAccess(event.target.value as AccessKind)}
-        >
-          <option value="read">read</option>
-          <option value="write">write</option>
-          <option value="exec">exec</option>
-        </select>
-      </Field>
+        <Field id="access" viewMode={viewMode} value={valueOf('access')}>
+          <select
+            style={{ ...controlStyle, width: 72 }}
+            value={cfg.access}
+            onChange={(event) => props.onAccess(event.target.value as AccessKind)}
+          >
+            <option value="read">read</option>
+            <option value="write">write</option>
+            <option value="exec">exec</option>
+          </select>
+        </Field>
+      </Group>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={fieldLabelStyle}>播放</span>
@@ -561,19 +622,18 @@ function Toolbar(props: ToolbarProps) {
       </div>
 
       {viewMode === 'register' && (
-        <div
+        <span
           style={{
             marginLeft: 'auto',
             font: TOKENS.font.mono,
             fontSize: 10,
             color: TOKENS.color.textMuted,
-            maxWidth: 210,
-            lineHeight: '12px',
-            textAlign: 'right',
+            whiteSpace: 'nowrap',
           }}
+          title="本页所有寄存器与位域均为教学模拟，不对应真实硬件写入"
         >
-          模拟值，非真实寄存器写入 · {hint('addrWidth')}
-        </div>
+          模拟值，非真实寄存器写入
+        </span>
       )}
     </header>
   );

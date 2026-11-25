@@ -7,13 +7,13 @@ export interface Region {
 
 /** 基准视口 1440×900，原点为页面左上角，单位 px。 */
 export const REGIONS = {
-  toolbar: { x: 0, y: 0, w: 1440, h: 56 },
-  addrBar: { x: 24, y: 64, w: 1392, h: 88 },
-  pageTable: { x: 24, y: 164, w: 620, h: 516 },
-  tlb: { x: 656, y: 164, w: 352, h: 236 },
-  narration: { x: 656, y: 412, w: 352, h: 268 },
-  memory: { x: 1020, y: 164, w: 396, h: 516 },
-  timeline: { x: 24, y: 692, w: 1392, h: 180 },
+  toolbar: { x: 0, y: 0, w: 1440, h: 80 },
+  addrBar: { x: 24, y: 88, w: 1392, h: 88 },
+  pageTable: { x: 24, y: 188, w: 620, h: 516 },
+  tlb: { x: 656, y: 188, w: 352, h: 236 },
+  narration: { x: 656, y: 436, w: 352, h: 268 },
+  memory: { x: 1020, y: 188, w: 396, h: 516 },
+  timeline: { x: 24, y: 716, w: 1392, h: 180 },
 } as const satisfies Record<string, Region>;
 
 export const SIZES = {

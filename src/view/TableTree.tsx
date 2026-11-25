@@ -1,12 +1,12 @@
 import { REGIONS, SIZES } from '../layout';
 import { TOKENS } from '../tokens';
-import type { Pte, Step } from '../types';
+import type { Pte, Step, ViewMode } from '../types';
 
 const ENTRIES = 512;
 const hex = (value: number) => `0x${value.toString(16).toUpperCase().padStart(3, '0')}`;
 
 /** 页表区：每级一行，16 格窗口以当前索引居中，两端折叠计数。 */
-export default function TableTree({ step }: { step: Step | null }) {
+export default function TableTree({ step, viewMode }: { step: Step | null; viewMode: ViewMode }) {
   const region = REGIONS.pageTable;
   const state = step?.state ?? null;
   const passed = new Set(step?.passed ?? []);
@@ -57,8 +57,10 @@ export default function TableTree({ step }: { step: Step | null }) {
         return (
           <div key={level} style={{ flex: 1, minHeight: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ font: TOKENS.font.mono, color: TOKENS.color.text, width: 96 }}>
-                L{level} 帧 0x{frame.toString(16).toUpperCase().padStart(3, '0')}
+              <span style={{ font: TOKENS.font.mono, color: TOKENS.color.text, width: 128 }}>
+                {viewMode === 'register' && level === 0
+                  ? `TTBR0_EL1 基址 ${hex(frame)}`
+                  : `L${level} 帧 ${hex(frame)}`}
               </span>
               <span style={{ font: TOKENS.font.mono, fontSize: 11, color: TOKENS.color.textMuted }}>
                 ‹ {start}
