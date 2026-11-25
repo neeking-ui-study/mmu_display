@@ -1,6 +1,7 @@
 import { REGIONS, SIZES } from '../layout';
 import { TOKENS } from '../tokens';
 import type { Step } from '../types';
+import SegmentBand from './SegmentBand';
 
 const hex = (value: number, width: number) =>
   `0x${value.toString(16).toUpperCase().padStart(width, '0')}`;
@@ -29,9 +30,14 @@ export default function TlbPanel({ step, enabled }: { step: Step | null; enabled
         transition: TOKENS.motion.base,
       }}
     >
-      <div style={{ font: TOKENS.font.ui, fontSize: 10.5, color: TOKENS.color.textMuted, marginBottom: 4 }}>
+      <div style={{ font: TOKENS.font.ui, fontSize: 10.5, color: TOKENS.color.textMuted, marginBottom: 3 }}>
         槽位 · VPN（VA&gt;&gt;12）· PFN · 权限 R/W/X · tick（最近使用）
       </div>
+      {step && (
+        <div style={{ marginBottom: 4 }}>
+          <SegmentBand cfg={step.state.cfg} width={region.w - 20} height={12} />
+        </div>
+      )}
       {Array.from({ length: 8 }, (_, slot) => {
         const entry = tlb[slot];
         const active = focus.has(`tlb.${slot}`);

@@ -1,4 +1,6 @@
+import { DEFAULT_CFG } from '../config';
 import { REGIONS, SIZES } from '../layout';
+import { fmtSize, levelInfos, segmentColor } from '../segments';
 import { TOKENS } from '../tokens';
 import type { Pte, Step, ViewMode } from '../types';
 
@@ -28,6 +30,7 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
   const state = step?.state ?? null;
   const passed = new Set(step?.passed ?? []);
   const focus = new Set(step?.focus ?? []);
+  const { infos, folded } = levelInfos(state?.cfg ?? DEFAULT_CFG);
 
   interface Row {
     level: number;
@@ -68,6 +71,10 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
         gap: 4,
       }}
     >
+      <div style={{ font: TOKENS.font.mono, fontSize: 10.5, color: TOKENS.color.textMuted }}>
+        页表 · {infos.map((info) => `L${info.level} · ${info.alias}`).join(' / ')}
+        {folded.length > 0 ? `（${folded.join('、')} 折叠）` : ''}
+      </div>
       {rows.map(({ level, frame, index, table, current }) => {
         const start = Math.min(Math.max(index - 8, 0), ENTRIES - SIZES.pageWindow);
         const windowCells = Array.from({ length: SIZES.pageWindow }, (_, i) => start + i);
@@ -75,13 +82,17 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
         const indexBits = state ? (state.cfg.addrWidth - offsetBits) / state.cfg.levels : 0;
         const high = state ? offsetBits + (state.cfg.levels - level) * indexBits - 1 : 0;
         const low = high - indexBits + 1;
+        const info = infos[level];
+        const color = segmentColor(level);
+        const addrHexWidth = state ? Math.ceil(state.cfg.addrWidth / 4) : 12;
+        const tableBase = state ? Math.floor(state.va / info.tableSpan) * info.tableSpan : 0;
         return (
           <div key={level} style={{ flex: 1, minHeight: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ font: TOKENS.font.mono, color: TOKENS.color.text, width: 128 }}>
+              <span style={{ font: TOKENS.font.mono, color, width: 150 }}>
                 {viewMode === 'register' && level === 0
                   ? `TTBR0_EL1 基址 ${hex(frame)}`
-                  : `L${level} 帧 ${hex(frame)}`}
+                  : `L${level} · ${info.alias} · 帧 ${hex(frame)}`}
               </span>
               <span style={{ font: TOKENS.font.mono, fontSize: 11, color: TOKENS.color.textMuted }}>
                 ‹ {start}
@@ -105,6 +116,7 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
                         font: TOKENS.font.mono,
                         fontSize: 11,
                         borderRadius: 2,
+                        border: `1px solid ${color}55`,
                         color: invalid
                           ? TOKENS.color.error
                           : pte
@@ -173,6 +185,21 @@ export default function TableTree({ step, viewMode }: { step: Step | null; viewM
               ) : (
                 <span style={{ color: TOKENS.color.error }}>该槽无表项（v=0，访问会触发页缺失）</span>
               )}
+            </div>
+            <div
+              style={{
+                font: TOKENS.font.mono,
+                fontSize: 11,
+                color: TOKENS.color.textMuted,
+                marginTop: 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              本表覆盖 VA {hex(tableBase, addrHexWidth)}–{hex(tableBase + info.tableSpan - 1, addrHexWidth)}
+              （{fmtSize(info.tableSpan)}）· 每项 {fmtSize(info.entrySpan)} · {info.entries} 项 × 8 B ={' '}
+              {fmtSize(info.entries * 8)}，刚好一页
             </div>
           </div>
         );

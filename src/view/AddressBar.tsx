@@ -1,4 +1,5 @@
 import { REGIONS, SIZES } from '../layout';
+import { levelInfos, segmentColor, segmentLabel } from '../segments';
 import { TOKENS } from '../tokens';
 import type { Config, Step } from '../types';
 import { Probe } from './Marks';
@@ -56,13 +57,10 @@ export default function AddressBar({
       ? cells.find((cell) => cell.level === null)?.cell ?? 0
       : cells.find((cell) => cell.level === focusLevel)?.cell ?? 0;
 
+  const { infos } = levelInfos(cfg);
   const result = step?.state.result ?? null;
   const activeIndex = focusLevel !== null && step ? step.state.indices[focusLevel] : null;
   const activeRange = focusLevel !== null ? levelRange(cfg, focusLevel, offsetBits) : null;
-  const allRanges = Array.from({ length: cfg.levels }, (_, lvl) => {
-    const range = levelRange(cfg, lvl, offsetBits);
-    return `L${lvl} ${range.high}:${range.low}`;
-  }).join(' · ');
 
   return (
     <section
@@ -91,26 +89,38 @@ export default function AddressBar({
           const isOffset = level === null;
           const active =
             focusAll || (isOffset ? focusOffset : focusLevel === level);
+          const color = segmentColor(level);
           return (
             <div
               key={cell}
-              title={`bit ${low + 2}:${low} · ${isOffset ? '页内偏移' : `L${level} 索引`}`}
+              title={`bit ${low + 2}:${low} · ${
+                isOffset ? '页内偏移 OFF' : `${segmentLabel(level, infos[level].alias)} 索引`
+              }`}
               style={{
                 flex: 1,
                 height: SIZES.addrCellH,
-                lineHeight: `${SIZES.addrCellH}px`,
-                textAlign: 'center',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0,
                 font: TOKENS.font.mono,
-                fontSize: 12,
-                color: isOffset ? TOKENS.color.offset : TOKENS.color.vpn,
-                background: isOffset ? `${TOKENS.color.offset}1A` : `${TOKENS.color.vpn}1A`,
+                color,
+                background: `${color}14`,
+                border: `1px solid ${color}66`,
                 borderRadius: 3,
                 outline: active ? `2px solid ${TOKENS.color.focus}` : 'none',
                 boxShadow: active ? TOKENS.focusRing.glow : 'none',
                 transition: TOKENS.motion.base,
               }}
             >
-              {value.toString(2).padStart(3, '0')}
+              <span style={{ fontSize: 8, lineHeight: '9px', letterSpacing: 0.2 }}>
+                {segmentLabel(level, level === null ? undefined : infos[level].alias)}
+              </span>
+              <span style={{ fontSize: 12, lineHeight: '13px' }}>
+                {value.toString(2).padStart(3, '0')}
+              </span>
             </div>
           );
         })}
@@ -132,15 +142,17 @@ export default function AddressBar({
         }}
       >
         {focusLevel !== null && activeIndex !== null && activeRange
-          ? `本级 L${focusLevel} 取 VA bit ${activeRange.high}:${activeRange.low} = ${bits(
+          ? `本级 ${segmentLabel(focusLevel, infos[focusLevel].alias)} 取 VA bit ${
+              activeRange.high
+            }:${activeRange.low} = ${bits(activeIndex, activeRange.indexBits)} → 第 ${activeIndex} 槽（索引 ${hex(
               activeIndex,
-              activeRange.indexBits,
-            )} → 第 ${activeIndex} 槽（索引 ${hex(activeIndex, 3)}）`
+              3,
+            )}）`
           : focusOffset
-            ? `页内偏移取 VA bit ${offsetBits - 1}:0，不参与选槽`
-            : `每级取 ${(cfg.addrWidth - offsetBits) / cfg.levels} 位作槽号：${allRanges} · offset ${
-                offsetBits - 1
-              }:0`}
+            ? `页内偏移 OFF 取 VA bit ${offsetBits - 1}:0，不参与选槽`
+            : `每级取 ${(cfg.addrWidth - offsetBits) / cfg.levels} 位作槽号：${infos
+                .map((info) => `${segmentLabel(info.level, info.alias)} ${info.high}:${info.low}`)
+                .join(' · ')} · OFF ${offsetBits - 1}:0`}
       </div>
       <div
         style={{

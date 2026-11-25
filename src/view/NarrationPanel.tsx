@@ -2,6 +2,7 @@ import { REGIONS } from '../layout';
 import { TOKENS } from '../tokens';
 import type { Step } from '../types';
 import { narrationOf } from './narration';
+import SegmentBand from './SegmentBand';
 
 /** 旁白区：标题一行 + 说明两行 + 步序；整块替换并淡入。 */
 export default function Narration({ step, total }: { step: Step | null; total: number }) {
@@ -39,7 +40,12 @@ export default function Narration({ step, total }: { step: Step | null; total: n
         {text.detail}
       </div>
       {step && (
-        <div style={{ marginTop: 10, font: TOKENS.font.mono, fontSize: 11, color: TOKENS.color.textMuted }}>
+        <div style={{ marginTop: 8 }}>
+          <SegmentBand cfg={step.state.cfg} width={region.w - 28} height={12} />
+        </div>
+      )}
+      {step && (
+        <div style={{ marginTop: 8, font: TOKENS.font.mono, fontSize: 11, color: TOKENS.color.textMuted }}>
           第 {step.id + 1} / {total} 步 · tick {step.state.tick}
         </div>
       )}

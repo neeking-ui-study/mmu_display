@@ -13,6 +13,11 @@ export const TOKENS = {
     error: '#D93F3F',
     focus: '#FFB020',
     tableTag: '#8B6CEF',
+    segL0: '#7C5CD6',
+    segL1: '#2E6BE6',
+    segL2: '#0E9384',
+    segL3: '#C2410C',
+    segOff: '#64748B',
   },
   font: {
     mono: '13px/1.4 "JetBrains Mono", ui-monospace, monospace',
